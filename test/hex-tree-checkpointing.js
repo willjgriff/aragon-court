@@ -22,29 +22,39 @@ contract('Hex Sum Tree', (accounts) => {
   }
 
   const logSortitionHex = async (value) => {
-    console.log(`Sortition ${value}:`, web3.toHex(await tree.sortition(value, 0)))
+    console.log(`Sortition ${value}:`, web3.toHex(await tree.sortition.call(value, 0)))
   }
 
   const logSortition = async (value) => {
-    console.log(`Sortition ${value}:`, (await tree.sortition(value, 0)).toNumber())
+    console.log(`Sortition ${value}:`, (await tree.sortition.call(value, 0)).toNumber())
+  }
+
+  const getCheckpointTime = async () => {
+    //return Math.floor(r.receipt.blockNumber / 256)
+    return (await tree.getCheckpointTime()).toNumber()
   }
 
   const multipleSetOnNode = async (node) => {
-    let setBns = [0]
+    let setBns = [{}]
     for (let i = 1; i <= 200; i++) {
-      const r = await tree.set(node, 10 + i)
-      setBns.push(r.receipt.blockNumber)
+      const value = 10 + i
+      const checkpointTime = await getCheckpointTime()
+      const r = await tree.set(node, value)
+      if (setBns[setBns.length - 1].time == checkpointTime) {
+        setBns[setBns.length - 1].value = value
+      } else {
+        setBns.push({ time: checkpointTime, value: value })
+      }
     }
 
     // check all past values
-    for (let i = 1; i <= 200; i++) {
-      const v = await tree.getPastItem(node, setBns[i])
-      //console.log(i, setBns[i], v.toNumber());
-      assertBN(v, 10 + i, `Value for node ${node} on block number ${setBns[i]} should match`)
+    for (let i = 1; i < setBns.length; i++) {
+      const v = await tree.getPastItem(node, setBns[i].time)
+      assertBN(v, setBns[i].value, `Value for node ${node} on checkpoint time ${setBns[i].time} should match`)
       const value1 = (node + 1) * 10 + i - 1
-      const s1 = await tree.sortition(value1, setBns[i])
+      const s1 = await tree.sortition.call(value1, setBns[i].time)
       //console.log(i, setBns[i], s1.toNumber())
-      assertBN(s1, node, `Sortition for value ${value1} on block number ${setBns[i]} should match`)
+      assertBN(s1, node, `Sortition for value ${value1} on checkpoint time ${setBns[i].time} should match`)
     }
   }
 
