@@ -27,6 +27,7 @@ library HexSumTree {
     string private constant ERROR_NEW_KEY_NOT_ADJACENT = "SUM_TREE_NEW_KEY_NOT_ADJACENT";
     string private constant ERROR_UPDATE_OVERFLOW = "SUM_TREE_UPDATE_OVERFLOW";
     string private constant ERROR_INEXISTENT_ITEM = "SUM_TREE_INEXISTENT_ITEM";
+    string private constant ERROR_SORTITION_BUG = "SUM_TREE_SORTITION_BUG"; // TODO: remove
 
     function init(Tree storage self) internal {
         self.rootDepth = INSERTION_DEPTH + 1;
@@ -79,6 +80,8 @@ library HexSumTree {
         }
     }
 
+    event LogSortStart(uint256 value, uint256 node, uint256 depth, uint64 time);
+    event LogSort(uint cl, uint cn, uint t);
     function _sortition(Tree storage self, uint256 value, uint256 node, uint256 depth, uint64 time) private view returns (uint256 key, uint256 nodeValue) {
         uint256 checkedValue = 0; // Can optimize by having checkedValue = value - remainingValue
 
@@ -89,6 +92,7 @@ library HexSumTree {
         uint256 child;
         uint256 checkingNode;
         uint256 nodeSum;
+        emit LogSortStart(value, node, depth, time);
         for (; checkingLevel > INSERTION_DEPTH; checkingLevel--) {
             for (child = 0; child < CHILDREN; child++) {
                 // shift the iterator and add it to node 0x00..0i00 (for depth = 3)
@@ -99,6 +103,7 @@ library HexSumTree {
                 // -> use always get(time), as Checkpointing already short cuts it
                 // - create another version of sortition for historic values, at the cost of repeating even more code
                 if (time > 0) {
+                    emit LogSort(checkingLevel, checkingNode, time);
                     nodeSum = self.nodes[checkingLevel][checkingNode].get(time);
                 } else {
                     nodeSum = self.nodes[checkingLevel][checkingNode].getLast();
@@ -128,11 +133,17 @@ library HexSumTree {
             }
         }
         // Invariant: this point should never be reached
+        // TODO: remove
+        revert(ERROR_SORTITION_BUG);
     }
 
+    event LogUpdateStart(uint256 key, uint64 time, uint256 delta, bool positive);
+    event LogRootDepth(uint r, uint nr);
+    event LogUpdate(uint i, uint ancestor, bytes32 mask, uint64 t, uint64 lastUpated, uint last, uint delta, bool positive);
     function _updateSums(Tree storage self, uint256 key, uint64 time, uint256 delta, bool positive) private {
         uint256 newRootDepth = sharedPrefix(self.rootDepth, key);
-
+        //emit LogUpdateStart(key, time, delta, positive);
+        //emit LogRootDepth(self.rootDepth, newRootDepth);
         if (self.rootDepth != newRootDepth) {
             self.nodes[newRootDepth][BASE_KEY].add(time, self.nodes[self.rootDepth][BASE_KEY].getLast());
             self.rootDepth = newRootDepth;
@@ -144,6 +155,7 @@ library HexSumTree {
             mask = mask << BITS_IN_NIBBLE;
             ancestorKey = ancestorKey & mask;
 
+            //emit LogUpdate(i, ancestorKey, bytes32(mask), time, self.nodes[i][ancestorKey].lastUpdated(), self.nodes[i][ancestorKey].getLast(), delta, positive);
             // Invariant: this will never underflow.
             self.nodes[i][ancestorKey].add(time, positive ? self.nodes[i][ancestorKey].getLast() + delta : self.nodes[i][ancestorKey].getLast() - delta);
         }
@@ -157,6 +169,10 @@ library HexSumTree {
 
     function get(Tree storage self, uint256 depth, uint256 key) internal view returns (uint256) {
         return self.nodes[depth][key].getLast();
+    }
+
+    function getPast(Tree storage self, uint256 depth, uint256 key, uint64 time) internal view returns (uint256) {
+        return self.nodes[depth][key].get(time);
     }
 
     function getItem(Tree storage self, uint256 key) internal view returns (uint256) {
