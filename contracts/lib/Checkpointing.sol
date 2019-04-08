@@ -32,24 +32,27 @@ library Checkpointing {
             return 0;
         }
 
-        uint256 lastIndex = length - 1;
-
-        // short-circuit
-        if (time >= self.history[lastIndex].time) {
-            return self.history[lastIndex].value;
-        }
-
         if (time < self.history[0].time) {
             return 0;
         }
 
         uint256 low = 0;
-        uint256 high = lastIndex;
+        uint256 high = length - 1;
 
         while (high > low) {
-            uint256 mid = (high + low + 1) / 2; // average, ceil round
+            // short-circuit
+            if (time >= self.history[high].time) {
+                return self.history[high].value;
+            }
 
-            if (time >= self.history[mid].time) {
+            uint64 timeLow = self.history[low].time;
+            uint256 d = uint256(self.history[high].time - timeLow);
+            // ceiling weighted mid point
+            uint256 mid = low + ((high - low) * (time - timeLow) + d - 1) / d;
+
+            if (time == self.history[mid].time) {
+                return self.history[mid].value;
+            } else if (time > self.history[mid].time) {
                 low = mid;
             } else { // time < self.history[mid].time
                 high = mid - 1;
