@@ -17,9 +17,9 @@ library HexSumTree {
      * 2^BITS_IN_NIBBLE = CHILDREN
      * BITS_IN_NIBBLE * MAX_DEPTH = 256
      */
-    uint256 private constant CHILDREN = 16;
-    uint256 private constant MAX_DEPTH = 64;
-    uint256 private constant BITS_IN_NIBBLE = 4;
+    uint256 private constant CHILDREN = 4;
+    uint256 private constant MAX_DEPTH = 128;
+    uint256 private constant BITS_IN_NIBBLE = 2;
     uint256 private constant INSERTION_DEPTH = 0;
     uint256 private constant BASE_KEY = 0; // tree starts on the very left
 

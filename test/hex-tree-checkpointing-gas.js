@@ -75,8 +75,8 @@ contract('Hex Sum Tree (Gas analysis)', (accounts) => {
   }
   const round = async(blocksOffset) => {
     const STARTING_KEY = (new web3.BigNumber(CHILDREN)).pow(5)
-    const NODES = 10
-    const UPDATES = 30
+    const NODES = 8
+    const UPDATES = 20
     const SORTITION_NUMBER = 10
     const initialBlockNumber = await tree.getBlockNumber64()
     const initialCheckpointTime = await tree.getCheckpointTime()
