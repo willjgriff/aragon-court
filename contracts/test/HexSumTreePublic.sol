@@ -20,7 +20,7 @@ contract HexSumTreePublic {
     modifier profileGas {
         uint256 initialGas = gasleft();
         _;
-        emit GasConsumed(initialGas - gasleft());
+        //emit GasConsumed(initialGas - gasleft());
     }
 
     function init() public {

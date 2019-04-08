@@ -83,9 +83,9 @@ library HexSumTree {
         }
     }
 
-    //event LogSortStart(uint256 value, uint256 node, uint256 depth, uint64 time);
-    //event LogSort(uint cl, uint cn, uint t);
-    //event LogSortCheck(uint checkedValue, uint nodeSum, uint value);
+    event LogSortStart(uint256 value, uint256 node, uint256 depth, uint64 time);
+    event LogSort(uint cl, uint cn, uint t);
+    event LogSortCheck(uint checkedValue, uint nodeSum, uint value);
     function _sortition(Tree storage self, uint256 value, uint256 node, uint256 depth, uint64 time) private view returns (uint256 key, uint256 nodeValue) {
         uint256 checkedValue = 0; // Can optimize by having checkedValue = value - remainingValue
 
@@ -96,7 +96,7 @@ library HexSumTree {
         uint256 child;
         uint256 checkingNode;
         uint256 nodeSum;
-        //emit LogSortStart(value, node, depth, time);
+        emit LogSortStart(value, node, depth, time);
         for (; checkingLevel > INSERTION_DEPTH; checkingLevel--) {
             for (child = 0; child < CHILDREN; child++) {
                 // shift the iterator and add it to node 0x00..0i00 (for depth = 3)
@@ -106,13 +106,13 @@ library HexSumTree {
                 // - leave it as is
                 // -> use always get(time), as Checkpointing already short cuts it
                 // - create another version of sortition for historic values, at the cost of repeating even more code
+                emit LogSort(checkingLevel, checkingNode, time);
                 if (time > 0) {
-                    //emit LogSort(checkingLevel, checkingNode, time);
                     nodeSum = self.nodes[checkingLevel][checkingNode].get(time);
                 } else {
                     nodeSum = self.nodes[checkingLevel][checkingNode].getLast();
                 }
-                //emit LogSortCheck(checkedValue, nodeSum, value);
+                emit LogSortCheck(checkedValue, nodeSum, value);
                 if (checkedValue + nodeSum <= value) { // not reached yet, move to next child
                     checkedValue += nodeSum;
                 } else { // value reached, move to next level
@@ -131,6 +131,7 @@ library HexSumTree {
             } else {
                 nodeSum = self.nodes[INSERTION_DEPTH][checkingNode].getLast();
             }
+            emit LogSortCheck(checkedValue, nodeSum, value);
             if (checkedValue + nodeSum <= value) { // not reached yet, move to next child
                 checkedValue += nodeSum;
             } else { // value reached
