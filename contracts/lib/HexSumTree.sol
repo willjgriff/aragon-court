@@ -64,8 +64,18 @@ library HexSumTree {
         return _sortition(self, value, BASE_KEY, self.rootDepth, time);
     }
 
+    function sortition(Tree storage self, uint256 value, uint64 time, uint256 maxLength) internal view returns (uint256 key, uint256 nodeValue) {
+        require(totalSumPast(self, time) > value, ERROR_SORTITION_OUT_OF_BOUNDS);
+
+        return _sortition(self, value, BASE_KEY, self.rootDepth, time); // TODO: pass maxLength
+    }
+
     function randomSortition(Tree storage self, uint256 seed, uint64 time) internal view returns (uint256 key, uint256 nodeValue) {
         return _sortition(self, seed % totalSumPast(self, time), BASE_KEY, self.rootDepth, time);
+    }
+
+    function randomSortition(Tree storage self, uint256 seed, uint64 time, uint256 maxLength) internal view returns (uint256 key, uint256 nodeValue) {
+        return _sortition(self, seed % totalSumPast(self, time), BASE_KEY, self.rootDepth, time); // TODO: pass maxLength
     }
 
     function _set(Tree storage self, uint256 key, uint64 time, uint256 value) private {

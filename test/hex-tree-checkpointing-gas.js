@@ -86,11 +86,16 @@ contract('Hex Sum Tree (Gas analysis)', (accounts) => {
     const insertGas = await insertNodes(NODES, 10)
     const { setBns, setGas } = await multipleUpdatesOnMultipleNodes(NODES, UPDATES, STARTING_KEY, 10, blocksOffset)
 
+    const finalCheckpointTime = await tree.getCheckpointTime()
+    const MAX_LENGTH = 30
+
     // check all past values
     let sortitionGas = []
     for (let i = 1; i < setBns.length; i++) {
       for (let j = 0; j < setBns[i].length; j++) {
-        const r = await tree.multiRandomSortition(SORTITION_NUMBER, setBns[i][j])
+        if (setBns[i][j] < finalCheckpointTime - MAX_LENGTH)
+          continue
+        const r = await tree.multiRandomSortition(SORTITION_NUMBER, setBns[i][j], MAX_LENGTH)
         const gas = getGas(r)
         sortitionGas.push(gas)
       }
@@ -102,7 +107,6 @@ contract('Hex Sum Tree (Gas analysis)', (accounts) => {
     logGasStats('Sortitions', sortitionGas)
 
     const finalBlockNumber = await tree.getBlockNumber64()
-    const finalCheckpointTime = await tree.getCheckpointTime()
     console.log(`final block number ${finalBlockNumber}, term ${finalCheckpointTime}`)
   }
 
