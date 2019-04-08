@@ -6,6 +6,9 @@ import "../lib/HexSumTree.sol";
 contract HexSumTreePublic {
     using HexSumTree for HexSumTree.Tree;
 
+    // This must match the one in HexSumTree !
+    uint256 private constant BITS_IN_NIBBLE = 4;
+
     HexSumTree.Tree tree;
 
     uint64 blockNumber;
@@ -28,8 +31,11 @@ contract HexSumTreePublic {
         emit LogKey(bytes32(tree.insert(getCheckpointTime(), v)));
     }
 
+    event LogIns(uint k, uint64 t, uint v);
     function insertNoLog(uint256 v) external profileGas {
         tree.insert(getCheckpointTime(), v);
+        //uint256 k = tree.insert(getCheckpointTime(), v);
+        //emit LogIns(k, getCheckpointTime(), v);
     }
 
     function insertMultiple(uint256 v, uint256 number) external profileGas {
@@ -63,6 +69,14 @@ contract HexSumTreePublic {
 
     function setNextKey(uint256 key) external {
         tree.nextKey = key;
+        // adjust depth
+        uint256 rootDepth = 0;
+        uint256 tmpKey = key;
+        while (tmpKey > 0) {
+            rootDepth++;
+            tmpKey = tmpKey >> BITS_IN_NIBBLE;
+        }
+        tree.rootDepth = rootDepth;
     }
 
     function sortition(uint256 value, uint64 checkpointTime) external profileGas returns (uint256) {
@@ -81,7 +95,11 @@ contract HexSumTreePublic {
         return tree.get(l, key);
     }
 
-    function getPastItem(uint256 key, uint64 checkpointTime) public view returns (uint256) {
+    function getPast(uint256 l, uint256 key, uint64 checkpointTime) external /* view */ returns (uint256) {
+        return tree.getPast(l, key, checkpointTime);
+    }
+
+    function getPastItem(uint256 key, uint64 checkpointTime) external view returns (uint256) {
         return tree.getPastItem(key, checkpointTime);
     }
 
