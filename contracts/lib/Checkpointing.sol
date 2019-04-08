@@ -13,6 +13,7 @@ library Checkpointing {
 
     uint256 private constant MAX_UINT192 = uint256(uint192(-1));
     uint256 private constant MAX_UINT64 = uint256(uint64(-1));
+    string private constant ERROR_WRONG_MAX_LENGTH = "CHKP_WRONG_MAX_LENGTH";
 
     function add192(History storage self, uint64 time, uint192 value) internal {
         if (self.history.length == 0 || self.history[self.history.length - 1].time < time) {
@@ -25,7 +26,7 @@ library Checkpointing {
         }
     }
 
-    function get192(History storage self, uint64 time) internal view returns (uint192) {
+    function get192(History storage self, uint64 time, uint256 maxLength) internal view returns (uint192) {
         uint256 length = self.history.length;
 
         if (length == 0) {
@@ -36,7 +37,11 @@ library Checkpointing {
             return 0;
         }
 
-        uint256 low = 0;
+        uint256 low;
+        if (maxLength > 0 && maxLength < length) {
+            low = length - maxLength;
+            require(time >= self.history[low].time, ERROR_WRONG_MAX_LENGTH);
+        }
         uint256 high = length - 1;
 
         while (high > low) {
@@ -77,7 +82,16 @@ library Checkpointing {
     }
 
     function get(History storage self, uint64 time) internal view returns (uint256) {
-        return uint256(get192(self, time));
+        return uint256(get192(self, time, 0));
+    }
+
+    function get30(History storage self, uint64 time) internal view returns (uint256) {
+      // TODO!!!!!!!!!!!
+      return uint256(get192(self, time, 30));
+    }
+
+    function get(History storage self, uint64 time, uint256 maxLength) internal view returns (uint256) {
+        return uint256(get192(self, time, maxLength));
     }
 
     function getLast(History storage self) internal view returns (uint256) {

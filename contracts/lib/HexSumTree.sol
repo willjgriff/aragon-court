@@ -64,8 +64,19 @@ library HexSumTree {
         return _sortition(self, value, BASE_KEY, self.rootDepth, time);
     }
 
+    function sortition(Tree storage self, uint256 value, uint64 time, uint256 maxLength) internal view returns (uint256 key, uint256 nodeValue) {
+        require(totalSumPast(self, time) > value, ERROR_SORTITION_OUT_OF_BOUNDS);
+
+        return _sortition(self, value, BASE_KEY, self.rootDepth, time); // TODO: pass maxLength
+    }
+
     function randomSortition(Tree storage self, uint256 seed, uint64 time) internal view returns (uint256 key, uint256 nodeValue) {
         return _sortition(self, seed % totalSumPast(self, time), BASE_KEY, self.rootDepth, time);
+    }
+
+    function randomSortition(Tree storage self, uint256 seed, uint64 time, uint256 maxLength) internal view returns (uint256 key, uint256 nodeValue) {
+        // TODO: stack too deep issue
+        return _sortition(self, seed % totalSumPast30(self, time), BASE_KEY, self.rootDepth, time); // TODO: pass maxLength
     }
 
     function _set(Tree storage self, uint256 key, uint64 time, uint256 value) private {
@@ -99,7 +110,7 @@ library HexSumTree {
                 // -> use always get(time), as Checkpointing already short cuts it
                 // - create another version of sortition for historic values, at the cost of repeating even more code
                 if (time > 0) {
-                    nodeSum = self.nodes[checkingLevel][checkingNode].get(time);
+                    nodeSum = self.nodes[checkingLevel][checkingNode].get30(time); // TODO: stack too deep issue
                 } else {
                     nodeSum = self.nodes[checkingLevel][checkingNode].getLast();
                 }
@@ -117,7 +128,7 @@ library HexSumTree {
             checkingNode = parentNode + child;
             // TODO: see above
             if (time > 0) {
-                nodeSum = self.nodes[INSERTION_DEPTH][checkingNode].get(time);
+                nodeSum = self.nodes[INSERTION_DEPTH][checkingNode].get30(time); // TODO: stack too deep issue
             } else {
                 nodeSum = self.nodes[INSERTION_DEPTH][checkingNode].getLast();
             }
@@ -157,6 +168,11 @@ library HexSumTree {
 
     function totalSumPast(Tree storage self, uint64 time) internal view returns (uint256) {
         return self.nodes[self.rootDepth][BASE_KEY].get(time);
+    }
+
+    // TODO: stack too deep issue
+    function totalSumPast30(Tree storage self, uint64 time) internal view returns (uint256) {
+      return self.nodes[self.rootDepth][BASE_KEY].get30(time);
     }
 
     function get(Tree storage self, uint256 depth, uint256 key) internal view returns (uint256) {

@@ -81,10 +81,10 @@ contract HexSumTreePublic {
         return k;
     }
 
-    function multiRandomSortition(uint256 number, uint64 checkpointTime) external profileGas {
+    function multiRandomSortition(uint256 number, uint64 checkpointTime, uint256 maxLength) external profileGas {
         for (uint256 i = 0; i < number; i++) {
             bytes32 seed = keccak256(abi.encodePacked(checkpointTime, i));
-            tree.randomSortition(uint256(seed), checkpointTime);
+            tree.randomSortition(uint256(seed), checkpointTime, maxLength);
         }
     }
 
