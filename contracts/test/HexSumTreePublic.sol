@@ -24,6 +24,7 @@ contract HexSumTreePublic {
     }
 
     function init() public {
+        blockNumber = 256;
         tree.init();
     }
 
@@ -76,12 +77,12 @@ contract HexSumTreePublic {
         tree.rootDepth = rootDepth;
     }
 
-    function sortition(uint256 value, uint64 checkpointTime) external profileGas returns (uint256) {
+    function sortition(uint256 value, uint32 checkpointTime) external profileGas returns (uint256) {
         (uint256 k,) = tree.sortition(value, checkpointTime);
         return k;
     }
 
-    function multiRandomSortition(uint256 number, uint64 checkpointTime) external profileGas {
+    function multiRandomSortition(uint256 number, uint32 checkpointTime) external profileGas {
         for (uint256 i = 0; i < number; i++) {
             bytes32 seed = keccak256(abi.encodePacked(checkpointTime, i));
             tree.randomSortition(uint256(seed), checkpointTime);
@@ -89,7 +90,7 @@ contract HexSumTreePublic {
     }
 
     function multiRandomSortitionLast(uint256 number) external profileGas {
-        uint64 checkpointTime = getCheckpointTime();
+        uint32 checkpointTime = getCheckpointTime();
         for (uint256 i = 0; i < number; i++) {
             bytes32 seed = keccak256(abi.encodePacked(checkpointTime, i));
             tree.randomSortition(uint256(seed), checkpointTime);
@@ -100,11 +101,11 @@ contract HexSumTreePublic {
         return tree.get(l, key);
     }
 
-    function getPast(uint256 l, uint256 key, uint64 checkpointTime) external view returns (uint256) {
+    function getPast(uint256 l, uint256 key, uint32 checkpointTime) external view returns (uint256) {
         return tree.getPast(l, key, checkpointTime);
     }
 
-    function getPastItem(uint256 key, uint64 checkpointTime) external view returns (uint256) {
+    function getPastItem(uint256 key, uint32 checkpointTime) external view returns (uint256) {
         return tree.getPastItem(key, checkpointTime);
     }
 
@@ -125,7 +126,7 @@ contract HexSumTreePublic {
         return blockNumber;
     }
 
-    function getCheckpointTime() public view returns (uint64) {
-        return getBlockNumber64() / 256;
+    function getCheckpointTime() public view returns (uint32) {
+        return uint32(getBlockNumber64() / 256);
     }
 }

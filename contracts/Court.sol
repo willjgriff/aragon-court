@@ -25,7 +25,7 @@ contract Court is ERC900, ApproveAndCallFallBack {
     }
 
     struct AccountUpdate {
-        uint64 term;
+        uint32 term;
         bool positive; // TODO: optimize gas
         uint256 delta;
     }
@@ -33,8 +33,8 @@ contract Court is ERC900, ApproveAndCallFallBack {
     struct Account {
         mapping (address => uint256) balances; // token addr -> balance
         AccountState state;      // whether the account is not a juror, a current juror or a past juror
-        uint64 fromTerm;         // first term in which the juror can be drawn
-        uint64 toTerm;           // last term in which the juror can be drawn
+        uint32 fromTerm;         // first term in which the juror can be drawn
+        uint32 toTerm;           // last term in which the juror can be drawn
         uint256 atStakeTokens;   // maximum amount of juror tokens that the juror could be slashed given their drafts
         uint256 sumTreeId;       // key in the sum tree used for sortition
         AccountUpdate update;    // next account update
@@ -49,9 +49,9 @@ contract Court is ERC900, ApproveAndCallFallBack {
         uint256 draftFee;          // per juror, total round draft fee = draftFee * jurors drawn
         uint256 settleFee;         // per juror, total round draft fee = settleFee * jurors drawn
         // Dispute config
-        uint64 commitTerms;
-        uint64 revealTerms;
-        uint64 appealTerms;
+        uint32 commitTerms;
+        uint32 revealTerms;
+        uint32 appealTerms;
         uint16 penaltyPct;
     }
 
@@ -76,7 +76,7 @@ contract Court is ERC900, ApproveAndCallFallBack {
         JurorVote[] votes;
         mapping (uint8 => uint256) rulingVotes;
         uint8 winningRuling;
-        uint64 draftTerm;
+        uint32 draftTerm;
         uint64 jurorNumber;
         address triggeredBy;
         bool settledPenalties;
@@ -113,7 +113,7 @@ contract Court is ERC900, ApproveAndCallFallBack {
 
     // State constants which are set in the constructor and can't change
     ERC20 public jurorToken;
-    uint64 public termDuration; // recomended value ~1 hour as 256 blocks (available block hash) around an hour to mine
+    uint32 public termDuration; // recomended value ~1 hour as 256 blocks (available block hash) around an hour to mine
 
     // Global config, configurable by governor
     address public governor; // TODO: consider using aOS' ACL
@@ -121,11 +121,11 @@ contract Court is ERC900, ApproveAndCallFallBack {
     CourtConfig[] public courtConfigs;
 
     // Court state
-    uint64 public term;
-    uint64 public configChangeTerm;
+    uint32 public term;
+    uint32 public configChangeTerm;
     mapping (address => Account) public accounts;
     mapping (uint256 => address) public jurorsByTreeId;
-    mapping (uint64 => Term) public terms;
+    mapping (uint32 => Term) public terms;
     HexSumTree.Tree internal sumTree;
     Dispute[] public disputes;
 
@@ -167,28 +167,28 @@ contract Court is ERC900, ApproveAndCallFallBack {
     string internal constant ERROR_JUROR_ALREADY_REWARDED = "COURT_JUROR_ALREADY_REWARDED";
     string internal constant ERROR_JUROR_NOT_COHERENT = "COURT_JUROR_NOT_COHERENT";
 
-    uint64 internal constant ZERO_TERM = 0; // invalid term that doesn't accept disputes
-    uint64 public constant MANUAL_DEACTIVATION = uint64(-1);
-    uint64 internal constant MODIFIER_ALLOWED_TERM_TRANSITIONS = 1;
+    uint32 internal constant ZERO_TERM = 0; // invalid term that doesn't accept disputes
+    uint32 public constant MANUAL_DEACTIVATION = uint32(-1);
+    uint32 internal constant MODIFIER_ALLOWED_TERM_TRANSITIONS = 1;
     bytes4 private constant ARBITRABLE_INTERFACE_ID = 0xabababab; // TODO: interface id
     uint16 internal constant PCT_BASE = 10000; // ‱
     uint8 public constant MIN_RULING_OPTIONS = 2;
     uint8 public constant MAX_RULING_OPTIONS = MIN_RULING_OPTIONS;
     address internal constant BURN_ACCOUNT = 0xdead;
 
-    event NewTerm(uint64 term, address indexed heartbeatSender);
-    event NewCourtConfig(uint64 fromTerm, uint64 courtConfigId);
+    event NewTerm(uint32 term, address indexed heartbeatSender);
+    event NewCourtConfig(uint32 fromTerm, uint64 courtConfigId);
     event TokenBalanceChange(address indexed token, address indexed owner, uint256 amount, bool positive);
-    event JurorActivated(address indexed juror, uint64 fromTerm, uint64 toTerm);
-    event JurorDeactivated(address indexed juror, uint64 lastTerm);
+    event JurorActivated(address indexed juror, uint32 fromTerm, uint32 toTerm);
+    event JurorDeactivated(address indexed juror, uint32 lastTerm);
     event JurorDrafted(uint256 indexed disputeId, address indexed juror, uint256 draftId);
     event DisputeStateChanged(uint256 indexed disputeId, DisputeState indexed state);
-    event NewDispute(uint256 indexed disputeId, address indexed subject, uint64 indexed draftTerm, uint64 jurorNumber);
+    event NewDispute(uint256 indexed disputeId, address indexed subject, uint32 indexed draftTerm, uint64 jurorNumber);
     event TokenWithdrawal(address indexed token, address indexed account, uint256 amount);
     event VoteCommitted(uint256 indexed disputeId, uint256 indexed roundId, address indexed juror, uint256 draftId, bytes32 commitment);
     event VoteRevealed(uint256 indexed disputeId, uint256 indexed roundId, address indexed juror, uint256 draftId, uint8 ruling);
     event VoteLeaked(uint256 indexed disputeId, uint256 indexed roundId, address indexed juror, uint256 draftId, address leaker);
-    event RulingAppealed(uint256 indexed disputeId, uint256 indexed roundId, uint64 indexed draftTerm, uint256 jurorNumber);
+    event RulingAppealed(uint256 indexed disputeId, uint256 indexed roundId, uint32 indexed draftTerm, uint256 jurorNumber);
     event RulingExecuted(uint256 indexed disputeId, uint8 indexed ruling);
     event RoundSlashingSettled(uint256 indexed disputeId, uint256 indexed roundId, uint256 slashedTokens);
     event RewardSettled(uint256 indexed disputeId, uint256 indexed roundId, address indexed juror, uint256 draftId);
@@ -199,7 +199,7 @@ contract Court is ERC900, ApproveAndCallFallBack {
     }
 
     modifier ensureTerm {
-        uint64 requiredTransitions = neededTermTransitions();
+        uint32 requiredTransitions = neededTermTransitions();
         require(requiredTransitions <= MODIFIER_ALLOWED_TERM_TRANSITIONS, ERROR_TOO_MANY_TRANSITIONS);
 
         if (requiredTransitions > 0) {
@@ -238,7 +238,7 @@ contract Court is ERC900, ApproveAndCallFallBack {
      * @param _penaltyPct ‱ of jurorMinStake that can be slashed (1/10,000)
      */
     constructor(
-        uint64 _termDuration,
+        uint32 _termDuration,
         ERC20 _jurorToken,
         ERC20 _feeToken,
         uint256 _jurorFee,
@@ -249,7 +249,7 @@ contract Court is ERC900, ApproveAndCallFallBack {
         address _governor,
         uint64 _firstTermStartTime,
         uint256 _jurorMinStake,
-        uint64[3] _roundStateDurations,
+        uint32[3] _roundStateDurations,
         uint16 _penaltyPct
     ) public {
         termDuration = _termDuration;
@@ -278,10 +278,10 @@ contract Court is ERC900, ApproveAndCallFallBack {
     /**
      * @notice Send a heartbeat to the Court to transition up to `_termTransitions`
      */
-    function heartbeat(uint64 _termTransitions) public {
+    function heartbeat(uint32 _termTransitions) public {
         require(canTransitionTerm(), ERROR_UNFINISHED_TERM);
 
-        uint64 prevTermId = term;
+        uint32 prevTermId = term;
         Term storage prevTerm = terms[prevTermId];
         Term storage nextTerm = terms[prevTermId + 1];
         address heartbeatSender = msg.sender;
@@ -365,7 +365,7 @@ contract Court is ERC900, ApproveAndCallFallBack {
     /**
      * @notice Become an active juror on term `_fromTerm` until term `_toTerm`
      */
-    function activate(uint64 _fromTerm, uint64 _toTerm) external ensureTerm {
+    function activate(uint32 _fromTerm, uint32 _toTerm) external ensureTerm {
         // TODO: Charge activation fee to juror
 
         address jurorAddress = msg.sender;
@@ -411,7 +411,7 @@ contract Court is ERC900, ApproveAndCallFallBack {
     /**
      * @notice Stop being an active juror on term `_lastTerm`
      */
-    function deactivate(uint64 _lastTerm) external ensureTerm {
+    function deactivate(uint32 _lastTerm) external ensureTerm {
         address jurorAddress = msg.sender;
         Account storage account = accounts[jurorAddress];
 
@@ -440,7 +440,7 @@ contract Court is ERC900, ApproveAndCallFallBack {
     /**
      * @notice Create a dispute over `_subject` with `_possibleRulings` possible rulings, drafting `_jurorNumber` jurors in term `_draftTerm`
      */
-    function createDispute(IArbitrable _subject, uint8 _possibleRulings, uint64 _jurorNumber, uint64 _draftTerm)
+    function createDispute(IArbitrable _subject, uint8 _possibleRulings, uint64 _jurorNumber, uint32 _draftTerm)
         external
         ensureTerm
         returns (uint256)
@@ -633,7 +633,7 @@ contract Court is ERC900, ApproveAndCallFallBack {
         AdjudicationRound storage currentRound = dispute.rounds[_roundId];
 
         uint64 appealJurorNumber = 2 * currentRound.jurorNumber + 1; // J' = 2J + 1
-        uint64 appealDraftTerm = term + 1; // Appeals are drafted in the next term
+        uint32 appealDraftTerm = term + 1; // Appeals are drafted in the next term
 
         // _newAdjudicationRound charges fees for starting the round
         uint256 roundId = _newAdjudicationRound(dispute, appealJurorNumber, appealDraftTerm);
@@ -682,7 +682,7 @@ contract Court is ERC900, ApproveAndCallFallBack {
 
         uint256 slashedTokens = 0;
         uint256 votesLength = round.votes.length;
-        uint64 slashingUpdateTerm = term + 1; // TODO: check update queue size
+        uint32 slashingUpdateTerm = term + 1; // TODO: check update queue size
 
         for (uint256 i = 0; i < votesLength; i++) {
             JurorVote storage vote = round.votes[i];
@@ -763,8 +763,8 @@ contract Court is ERC900, ApproveAndCallFallBack {
         return neededTermTransitions() >= 1;
     }
 
-    function neededTermTransitions() public view returns (uint64) {
-        return (_time() - terms[term].startTime) / termDuration;
+    function neededTermTransitions() public view returns (uint32) {
+        return uint32((_time() - terms[term].startTime) / termDuration);
     }
 
     function getJurorVote(uint256 _disputeId, uint256 _roundId, uint256 _draftId) external view returns (address juror, uint8 ruling) {
@@ -780,7 +780,7 @@ contract Court is ERC900, ApproveAndCallFallBack {
     /**
      * @dev Assumes term is up to date
      */
-    function feeForJurorDraft(uint64 _draftTerm, uint64 _jurorNumber) public view returns (ERC20 feeToken, uint256 feeAmount, uint16 governanceFeeShare) {
+    function feeForJurorDraft(uint32 _draftTerm, uint64 _jurorNumber) public view returns (ERC20 feeToken, uint256 feeAmount, uint16 governanceFeeShare) {
         CourtConfig storage fees = _courtConfigForTerm(_draftTerm);
 
         feeToken = fees.feeToken;
@@ -847,7 +847,7 @@ contract Court is ERC900, ApproveAndCallFallBack {
         nC = pA == pC ? nC : -nC;
     }
 
-    function _newAdjudicationRound(Dispute storage dispute, uint64 _jurorNumber, uint64 _draftTerm) internal returns (uint256 roundId) {
+    function _newAdjudicationRound(Dispute storage dispute, uint64 _jurorNumber, uint32 _draftTerm) internal returns (uint256 roundId) {
         (ERC20 feeToken, uint256 feeAmount,) = feeForJurorDraft(_draftTerm, _jurorNumber);
         if (feeAmount > 0) {
             require(feeToken.safeTransferFrom(msg.sender, this, feeAmount), ERROR_DEPOSIT_FAILED);
@@ -911,16 +911,16 @@ contract Court is ERC900, ApproveAndCallFallBack {
         require(_adjudicationStateAtTerm(_disputeId, _roundId, term) == _state, ERROR_INVALID_ADJUDICATION_STATE);
     }
 
-    function _adjudicationStateAtTerm(uint256 _disputeId, uint256 _roundId, uint64 _term) internal view returns (AdjudicationState) {
+    function _adjudicationStateAtTerm(uint256 _disputeId, uint256 _roundId, uint32 _term) internal view returns (AdjudicationState) {
         AdjudicationRound storage round = disputes[_disputeId].rounds[_roundId];
 
-        uint64 draftTerm = round.draftTerm;
+        uint32 draftTerm = round.draftTerm;
         uint64 configId = terms[draftTerm].courtConfigId;
         CourtConfig storage config = courtConfigs[uint256(configId)];
 
-        uint64 revealStart = draftTerm + config.commitTerms;
-        uint64 appealStart = revealStart + config.revealTerms;
-        uint64 appealEnd = appealStart + config.appealTerms;
+        uint32 revealStart = draftTerm + config.commitTerms;
+        uint32 appealStart = revealStart + config.revealTerms;
+        uint32 appealEnd = appealStart + config.appealTerms;
 
         if (_term < draftTerm) {
             return AdjudicationState.Invalid;
@@ -945,8 +945,8 @@ contract Court is ERC900, ApproveAndCallFallBack {
         return sumTree.randomSortition(uint256(seed), 0);
     }
 
-    function _courtConfigForTerm(uint64 _term) internal view returns (CourtConfig storage) {
-        uint64 feeTerm;
+    function _courtConfigForTerm(uint32 _term) internal view returns (CourtConfig storage) {
+        uint32 feeTerm;
 
         if (_term <= term) {
             feeTerm = _term; // for past terms, use the fee structure of the specific term
@@ -973,14 +973,14 @@ contract Court is ERC900, ApproveAndCallFallBack {
         }
     }
 
-    function _processJurorQueues(uint64 _prevTermId, Term storage _incomingTerm) internal {
+    function _processJurorQueues(uint32 _prevTermId, Term storage _incomingTerm) internal {
         // Always process egress before updates
         // If a juror update is scheduled for the same term, it will get settled processing its exit
         _processEgressQueue(_incomingTerm, _prevTermId);
         _processUpdateQueue(_incomingTerm);
     }
 
-    function _processEgressQueue(Term storage _incomingTerm, uint64 _prevTermId) internal {
+    function _processEgressQueue(Term storage _incomingTerm, uint32 _prevTermId) internal {
         uint256 length = _incomingTerm.egressQueue.length;
 
         for (uint256 i = 0; i < length; i++) {
@@ -1055,14 +1055,14 @@ contract Court is ERC900, ApproveAndCallFallBack {
 
     // TODO: Expose external function to change config
     function _setCourtConfig(
-        uint64 _fromTerm,
+        uint32 _fromTerm,
         ERC20 _feeToken,
         uint256 _jurorFee,
         uint256 _heartbeatFee,
         uint256 _draftFee,
         uint256 _settleFee,
         uint16 _governanceFeeShare,
-        uint64[3] _roundStateDurations,
+        uint32[3] _roundStateDurations,
         uint16 _penaltyPct
     ) internal {
         // TODO: Require config changes happening at least X terms in the future

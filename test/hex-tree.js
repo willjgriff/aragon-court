@@ -4,6 +4,7 @@ const HexSumTreePublic = artifacts.require('HexSumTreePublic')
 
 contract('Hex Sum Tree', (accounts) => {
   let tree
+  const TIME = 1
 
   beforeEach(async () => {
     tree = await HexSumTreePublic.new()
@@ -15,7 +16,7 @@ contract('Hex Sum Tree', (accounts) => {
   }
 
   const logSortition = async (value) => {
-    console.log(`Sortition ${value}:`, web3.toHex(await tree.sortition.call(value, 0)))
+    console.log(`Sortition ${value}:`, web3.toHex(await tree.sortition.call(value, TIME)))
   }
 
   it('inserts', async () => {
@@ -58,11 +59,11 @@ contract('Hex Sum Tree', (accounts) => {
 
     for (let i = 0; i < 5; i++) {
       //await logSortition(i)
-      assertBN(await tree.sortition.call(i, 0), 0, `Draw first, value ${i}`)
+      assertBN(await tree.sortition.call(i, TIME), 0, `Draw first, value ${i}`)
     }
     for (let i = 5; i < 10; i++) {
       //await logSortition(i)
-      assertBN(await tree.sortition.call(i, 0), 1, `Draw second, value ${i}`)
+      assertBN(await tree.sortition.call(i, TIME), 1, `Draw second, value ${i}`)
     }
   })
 
@@ -90,9 +91,9 @@ contract('Hex Sum Tree', (accounts) => {
         //console.log(`#${i + 1}: Sum ${await tree.totalSum()}. Depth ${depth}. Next key ${web3.toHex(key)}`)
     }
 
-    assertBN(await tree.sortition.call(1, 0), 0)
-    assertBN(await tree.sortition.call(11, 0), 1)
-    assertBN(await tree.sortition.call(171, 0), 17)
+    assertBN(await tree.sortition.call(1, TIME), 0)
+    assertBN(await tree.sortition.call(11, TIME), 1)
+    assertBN(await tree.sortition.call(171, TIME), 17)
   })
 
   it('inserts into another node', async () => {
@@ -109,7 +110,7 @@ contract('Hex Sum Tree', (accounts) => {
     assertBN(await tree.get(1, 16), 160, 'get sum 1.1')
     assertBN(await tree.get(2, 0), 2560, 'get sum 2.0')
 
-    assertBN(await tree.sortition.call(2605, 0), 260)
+    assertBN(await tree.sortition.call(2605, TIME), 260)
   })
 
   it('tests sortition on all nodes', async () => {
@@ -122,7 +123,7 @@ contract('Hex Sum Tree', (accounts) => {
     // sortition
     for (let i = 0; i < NODES; i++) {
       //console.log(10 * i, (await tree.sortition.call(10 * i, 0)).toNumber(), i)
-      assertBN(await tree.sortition.call(10 * i, 0), i)
+      assertBN(await tree.sortition.call(10 * i, TIME), i)
     }
   })
 })

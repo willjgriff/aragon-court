@@ -2,86 +2,142 @@ pragma solidity ^0.4.24;
 
 
 library Checkpointing {
-    struct Checkpoint {
-        uint64 time; // generic: it can be blockNumber, timestamp, term or any other unit
-        uint192 value;
-    }
-
     struct History {
-        Checkpoint[] history;
+        mapping (uint256 => uint256) history; // time (uint32 actually: terms) => value
+        uint256[] checkpoints; // TODO: explain
     }
 
-    uint256 private constant MAX_UINT192 = uint256(uint192(-1));
-    uint256 private constant MAX_UINT64 = uint256(uint64(-1));
+    function lastUpdated(History storage self) internal view returns (uint32) {
+        (,, uint256 lastCheckpoint) = _getLastCheckpoint(self);
 
-    function add192(History storage self, uint64 time, uint192 value) internal {
-        if (self.history.length == 0 || self.history[self.history.length - 1].time < time) {
-            self.history.push(Checkpoint(time, value));
+        return uint32(lastCheckpoint);
+    }
+
+    function add(History storage self, uint32 time, uint256 value) internal {
+        _addCheckpoint(self, time);
+        self.history[time] = value;
+    }
+
+    function get(History storage self, uint32 time) internal view returns (uint256) {
+        uint256 lucky = self.history[time];
+        if (lucky > 0) {
+            return lucky;
+        }
+        uint256 previousCheckpoint = _getPreviousCheckpoint(self, time);
+        return self.history[previousCheckpoint];
+    }
+
+    function getLast(History storage self) internal view returns (uint256) {
+        (,, uint256 lastCheckpoint) = _getLastCheckpoint(self);
+
+        return self.history[lastCheckpoint];
+    }
+
+    function _addCheckpoint(History storage self, uint32 time) internal {
+        require(time > 0);
+
+        (uint256 index, uint256 position, uint32 lastCheckpoint) = _getLastCheckpoint(self);
+
+        if (lastCheckpoint == 0) {
+            self.checkpoints.push(time);
+        } else if (lastCheckpoint < time) {
+            (index, position) = _getNextPosition(index, position);
+            if (position == 0) {
+                self.checkpoints.push(time);
+            } else {
+                _setCheckpoint(self, index, position, time);
+            }
         } else {
-            Checkpoint storage currentCheckpoint = self.history[self.history.length - 1];
-            require(time == currentCheckpoint.time); // ensure list ordering
-
-            currentCheckpoint.value = value;
+            require(time == lastCheckpoint); // ensure list ordering
         }
     }
 
-    function get192(History storage self, uint64 time) internal view returns (uint192) {
-        uint256 length = self.history.length;
+    function _getNextPosition(uint256 index, uint256 position) private pure returns (uint256, uint256) {
+        if (position == 7) {
+            return (index + 1, 0);
+        }
+        return (index, position + 1);
+    }
 
+    function _setCheckpoint(History storage self, uint256 index, uint256 position, uint32 time) private {
+        uint256 offset = position << 5; // * 32
+        uint256 mask = ~(0xFFFFFFFF << offset);
+        uint256 shiftedTime = uint256(time) << offset;
+        self.checkpoints[index] = (self.checkpoints[index] & mask) + shiftedTime;
+    }
+
+    function _getLastCheckpoint(History storage self) private view returns (uint256 index, uint256 position, uint32 lastCheckpoint) {
+        uint256 length = self.checkpoints.length;
         if (length == 0) {
+            return (0, 0, 0);
+        }
+        index = length - 1;
+        uint256 tuple = self.checkpoints[index];
+        (position, lastCheckpoint) = _getLastTupleCheckpoint(tuple);
+    }
+
+    function _getLastTupleCheckpoint(uint256 tuple) private /* pure */ returns (uint256, uint32) {
+        for (uint256 i = 7; i > 0; i--) {
+            uint32 checkpoint = _getCheckpointFromTuple(tuple, i);
+            if (checkpoint > 0) {
+                return (i, checkpoint);
+            }
+        }
+
+        // there shouldn't be empty Checkpoint tuples
+        //return (0, _getCheckpointFromTuple(tuple, 0));
+        return (0, uint32(tuple));
+    }
+
+    function _getCheckpointFromTuple(uint256 tuple, uint256 position) private /* pure */ returns (uint32) {
+        uint256 offset = position << 5; // * 32
+        uint256 mask = 0xFFFFFFFF << offset;
+        return uint32((tuple & mask) >> offset);
+    }
+
+    function _getCheckpoint(History storage self, uint256 index, uint256 position) private view returns (uint32) {
+        return _getCheckpointFromTuple(self.checkpoints[index], position);
+    }
+
+    function _getPreviousCheckpoint(History storage self, uint32 time) private view returns (uint32) {
+        (uint256 index, uint256 position, uint32 lastCheckpoint) = _getLastCheckpoint(self);
+
+        if (lastCheckpoint == 0) {
             return 0;
         }
 
-        uint256 lastIndex = length - 1;
-
         // short-circuit
-        if (time >= self.history[lastIndex].time) {
-            return self.history[lastIndex].value;
+        if (time >= lastCheckpoint) {
+            return lastCheckpoint;
         }
 
-        if (time < self.history[0].time) {
+        if (time < _getCheckpointFromTuple(self.checkpoints[0], 0)) {
             return 0;
         }
 
         uint256 low = 0;
-        uint256 high = lastIndex;
+        uint256 high = _roll(index, position);
 
         while (high > low) {
             uint256 mid = (high + low + 1) / 2; // average, ceil round
+            (index, position) = _unroll(mid);
 
-            if (time >= self.history[mid].time) {
+            if (time >= _getCheckpoint(self, index, position)) {
                 low = mid;
             } else { // time < self.history[mid].time
                 high = mid - 1;
             }
         }
 
-        return self.history[low].value;
+        (index, position) = _unroll(low);
+        return _getCheckpoint(self, index, position);
     }
 
-    function lastUpdated(History storage self) internal view returns (uint64) {
-        if (self.history.length > 0) {
-            return self.history[self.history.length - 1].time;
-        }
-
-        return 0;
+    function _roll(uint256 index, uint256 position) private pure returns (uint256) {
+        return index * 8 + position;
     }
 
-    function add(History storage self, uint64 time, uint256 value) internal {
-        require(value <= MAX_UINT192);
-
-        add192(self, time, uint192(value));
-    }
-
-    function get(History storage self, uint64 time) internal view returns (uint256) {
-        return uint256(get192(self, time));
-    }
-
-    function getLast(History storage self) internal view returns (uint256) {
-        if (self.history.length > 0) {
-            return uint256(self.history[self.history.length - 1].value);
-        }
-
-        return 0;
+    function _unroll(uint256 id) private pure returns (uint256, uint256) {
+        return (id / 8, id % 8);
     }
 }

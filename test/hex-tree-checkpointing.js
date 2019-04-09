@@ -4,6 +4,7 @@ const HexSumTreePublic = artifacts.require('HexSumTreePublic')
 
 contract('Hex Sum Tree', (accounts) => {
   let tree
+  const TIME = 1
 
   beforeEach(async () => {
     tree = await HexSumTreePublic.new()
@@ -22,11 +23,11 @@ contract('Hex Sum Tree', (accounts) => {
   }
 
   const logSortitionHex = async (value) => {
-    console.log(`Sortition ${value}:`, web3.toHex(await tree.sortition.call(value, 0)))
+    console.log(`Sortition ${value}:`, web3.toHex(await tree.sortition.call(value, TIME)))
   }
 
   const logSortition = async (value) => {
-    console.log(`Sortition ${value}:`, (await tree.sortition.call(value, 0)).toNumber())
+    console.log(`Sortition ${value}:`, (await tree.sortition.call(value, TIME)).toNumber())
   }
 
   const getCheckpointTime = async () => {
