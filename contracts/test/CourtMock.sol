@@ -68,7 +68,7 @@ contract CourtMock is Court {
     }
 
     function mock_sortition(uint256 v) public view returns (address) {
-        var (k, ) = sumTree.sortition(v, 0);
+        var (k, ) = sumTree.sortition(v, _time(), false);
         return jurorsByTreeId[k];
     }
 
