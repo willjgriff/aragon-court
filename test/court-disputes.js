@@ -159,7 +159,7 @@ contract('Court: Disputes', ([ poor, rich, governor, juror1, juror2, juror3, arb
         }
       }
 
-      const numberOfJurors = 89
+      const numberOfJurors = 87
 
       await activateJurors(numberOfJurors)
 
