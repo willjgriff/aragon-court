@@ -119,7 +119,7 @@ contract('Court: Disputes', ([ poor, rich, governor, juror1, juror2, juror3, arb
 
     const passTerms = async terms => {
       await this.court.mock_timeTravel(terms * termDuration)
-      const heartbeatReceipt = await this.court.heartbeat(terms)
+      const heartbeatReceipt = await this.court.heartbeat(terms, { gas: 6000000 })
       await this.court.mock_blockTravel(1)
       assert.isFalse(await this.court.canTransitionTerm(), 'all terms transitioned')
       return heartbeatReceipt
@@ -159,7 +159,7 @@ contract('Court: Disputes', ([ poor, rich, governor, juror1, juror2, juror3, arb
         }
       }
 
-      const numberOfJurors = 195
+      const numberOfJurors = 89
 
       await activateJurors(numberOfJurors)
 
@@ -172,26 +172,26 @@ contract('Court: Disputes', ([ poor, rich, governor, juror1, juror2, juror3, arb
       console.log(`Gas used for egress heartbeat: ${heartbeatEgressQueueReceipt.receipt.gasUsed}`)
 
       /**
-       * Benchmarking results:
+       * Benchmarking results for gas limit 6e6 (6000000):
        *
        * 1 jurors: Update heartbeat: 58484 Egress heartbeat: 72059 (with inserted update: 66615)
        * 10 jurors: Update heartbeat: 262858 Egress heartbeat: 338313 (with inserted update: 344174)
-       * 100 jurors: Update heartbeat: 2619489 Egress heartbeat: 3351588 (with inserted update: 3410099)
-       * 145 jurors: Update heartbeat: 3794366 Egress heartbeat: 4843805 (with inserted update: 4928641)
-       * 148 jurors: Update heartbeat: 3871194 Egress heartbeat: 4943288 (with inserted update: OOG)
-       * 149 jurors: Update heartbeat: 3896803 Egress heartbeat: 4976450
-       * 150 jurors: Update heartbeat: 3922412 Egress heartbeat: OOG
-       * 190 jurors: Update heartbeat: 4969307 Egress heartbeat: OOG
-       * 195 jurors: Update heartbeat: OOG Egress heartbeat: OOG
+       * 87 jurors: Update heartbeat: 2279092 Egress heartbeat: ? (with inserted update: 2971410)
+       * 88 jurors: Update heartbeat: 2304699 Egress heartbeat: ? (with inserted update: OOG)
+       * 89 jurors: Update heartbeat: 2330307 Egress heartbeat: 2986833 (with inserted update: OOG)
+       * 90 jurors: Update heartbeat: 2355914 Egress heartbeat: OOG (with inserted update: OOG)
+       * 115 jurors: Update heartbeat: 2934284 Egress heartbeat: OOG (with inserted update: OOG)
+       * 118 jurors: Update heartbeat: OOG Egress heartbeat: OOG (with inserted update: OOG)
        *
-       * Update queue processing limit ~190
-       * Egress queue processing limit ~149
-       * Egress queue with extra update limit ~145
+       * Update queue processing limit ~115 addresses
+       * Egress queue processing limit ~89 addresses
+       * Egress queue with extra update limit ~87 addresses
        *
        * Update queue processing increases linearly, egress queue processing increases exponentially.
-       * It should be noted that the OOG for each queue doesn't seem to happen at the gas limit (10000000),
-       * but I believe this is due to the refund made after deleting data from storage.
+       * It should be noted that the OOG for each queue doesn't seem to happen at the gas
+       * limit (6000000), this is due to the refund made after deleting data from storage.
        */
+
     })
 
 
